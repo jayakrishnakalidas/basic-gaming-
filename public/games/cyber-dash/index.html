@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Cyber Dash</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; touch-action: manipulation; user-select: none; }
+    body { background: #090d16; color: #fff; font-family: system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; overflow: hidden; }
+    .header { display: flex; justify-content: space-between; width: 360px; margin-bottom: 10px; font-weight: 700; }
+    canvas { background: #0f172a; border: 2px solid #14b8a6; border-radius: 12px; box-shadow: 0 0 20px rgba(20, 184, 166, 0.3); max-width: 95vw; }
+    .controls { display: flex; justify-content: space-between; width: 360px; margin-top: 12px; gap: 10px; }
+    .btn { background: rgba(20, 184, 166, 0.2); border: 1px solid #14b8a6; color: #fff; padding: 14px 20px; border-radius: 10px; font-size: 1.1rem; cursor: pointer; flex: 1; text-align: center; font-weight: bold; }
+    .btn:active { background: #14b8a6; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div>Score: <span id="score">0</span></div>
+    <div>Best: <span id="highScore">0</span></div>
+  </div>
+
+  <canvas id="dashCanvas" width="360" height="420"></canvas>
+
+  <div class="controls">
+    <div class="btn" id="btnJump">⬆ JUMP</div>
+    <div class="btn" id="btnDuck">⬇ DUCK</div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('dashCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const groundY = 340;
+    let runner = { x: 50, y: groundY - 35, width: 25, height: 35, vy: 0, gravity: 0.6, isGrounded: true, isDucking: false };
+    let obstacles = [];
+    let score = 0;
+    let highScore = localStorage.getItem('dash_high') || 0;
+    document.getElementById('highScore').textContent = highScore;
+
+    let frame = 0;
+    let speed = 4.5;
+    let isGameOver = false;
+
+    function reset() {
+      runner.y = groundY - 35;
+      runner.vy = 0;
+      runner.height = 35;
+      runner.isDucking = false;
+      obstacles = [];
+      score = 0;
+      frame = 0;
+      speed = 4.5;
+      isGameOver = false;
+      document.getElementById('score').textContent = 0;
+    }
+
+    function jump() {
+      if (isGameOver) return reset();
+      if (runner.isGrounded && !runner.isDucking) {
+        runner.vy = -12;
+        runner.isGrounded = false;
+      }
+    }
+
+    function duck(isDucking) {
+      if (isGameOver) return;
+      runner.isDucking = isDucking;
+      if (isDucking && runner.isGrounded) {
+        runner.height = 20;
+        runner.y = groundY - 20;
+      } else if (!isDucking) {
+        runner.height = 35;
+        if (runner.isGrounded) runner.y = groundY - 35;
+      }
+    }
+
+    function loop() {
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw Ground
+      ctx.strokeStyle = '#14b8a6';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(0, groundY);
+      ctx.lineTo(canvas.width, groundY);
+      ctx.stroke();
+
+      if (!isGameOver) {
+        frame++;
+        score++;
+        document.getElementById('score').textContent = score;
+        if (score > highScore) {
+          highScore = score;
+          localStorage.setItem('dash_high', highScore);
+          document.getElementById('highScore').textContent = highScore;
+        }
+
+        if (frame % 200 === 0) speed += 0.2;
+
+        // Apply physics
+        runner.vy += runner.gravity;
+        runner.y += runner.vy;
+        if (runner.y >= groundY - runner.height) {
+          runner.y = groundY - runner.height;
+          runner.vy = 0;
+          runner.isGrounded = true;
+        }
+
+        // Spawn obstacles
+        if (frame % Math.floor(1000 / (speed * 2)) === 0) {
+          const type = Math.random() > 0.4 ? 'GROUND' : 'HIGH';
+          obstacles.push({
+            x: canvas.width,
+            y: type === 'GROUND' ? groundY - 30 : groundY - 60,
+            width: 20,
+            height: type === 'GROUND' ? 30 : 20,
+            type: type
+          });
+        }
+
+        // Move & Check Obstacles
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+          obstacles[i].x -= speed;
+
+          // AABB collision
+          if (
+            runner.x < obstacles[i].x + obstacles[i].width &&
+            runner.x + runner.width > obstacles[i].x &&
+            runner.y < obstacles[i].y + obstacles[i].height &&
+            runner.y + runner.height > obstacles[i].y
+          ) {
+            isGameOver = true;
+          }
+
+          if (obstacles[i].x < -30) obstacles.splice(i, 1);
+        }
+      }
+
+      // Draw Obstacles
+      ctx.fillStyle = '#ec4899';
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = '#ec4899';
+      obstacles.forEach(o => ctx.fillRect(o.x, o.y, o.width, o.height));
+
+      // Draw Runner
+      ctx.fillStyle = '#14b8a6';
+      ctx.shadowColor = '#14b8a6';
+      ctx.fillRect(runner.x, runner.y, runner.width, runner.height);
+      ctx.shadowBlur = 0;
+
+      if (isGameOver) {
+        ctx.fillStyle = '#ec4899';
+        ctx.font = 'bold 28px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 20);
+        ctx.font = '16px system-ui';
+        ctx.fillStyle = '#fff';
+        ctx.fillText('Tap Jump to Restart', canvas.width / 2, canvas.height / 2 + 20);
+      }
+
+      requestAnimationFrame(loop);
+    }
+
+    // Input listeners
+    document.getElementById('btnJump').addEventListener('touchstart', (e) => { e.preventDefault(); jump(); });
+    document.getElementById('btnJump').addEventListener('click', jump);
+    document.getElementById('btnDuck').addEventListener('touchstart', (e) => { e.preventDefault(); duck(true); });
+    document.getElementById('btnDuck').addEventListener('touchend', () => duck(false));
+    document.getElementById('btnDuck').addEventListener('mousedown', () => duck(true));
+    document.getElementById('btnDuck').addEventListener('mouseup', () => duck(false));
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowUp' || e.code === 'Space') jump();
+      if (e.key === 'ArrowDown') duck(true);
+    });
+    document.addEventListener('keyup', (e) => {
+      if (e.key === 'ArrowDown') duck(false);
+    });
+
+    loop();
+  </script>
+</body>
+</html>

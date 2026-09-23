@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Connect 4 — Four in a Row</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; touch-action: manipulation; }
+    body {
+      background: #090d16;
+      color: #fff;
+      font-family: system-ui, -apple-system, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 10px;
+      background-image:
+        radial-gradient(circle at 20% 20%, rgba(99,102,241,0.12) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(236,72,153,0.12) 0%, transparent 50%);
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      font-weight: 800;
+      margin-bottom: 10px;
+      background: linear-gradient(135deg, #f59e0b, #ef4444);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-align: center;
+    }
+
+    /* Mode & Difficulty */
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 10px; }
+    .ctrl-btn {
+      background: #161f31;
+      border: 1px solid rgba(255,255,255,0.15);
+      color: #94a3b8;
+      padding: 5px 12px;
+      border-radius: 18px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .ctrl-btn.active { background: #6366f1; color: #fff; border-color: #6366f1; box-shadow: 0 0 10px rgba(99,102,241,0.4); }
+    .ctrl-btn:hover:not(.active) { border-color: #6366f1; color: #c7d2fe; }
+    .diff-group { display: flex; gap: 6px; }
+    .diff-group.hidden { display: none; }
+
+    /* Scoreboard */
+    .score-board {
+      display: flex;
+      justify-content: space-around;
+      width: 100%;
+      max-width: 380px;
+      margin-bottom: 10px;
+      background: #161f31;
+      padding: 8px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .score-item { text-align: center; }
+    .score-item label { font-size: 0.7rem; color: #94a3b8; display: block; }
+    .score-item span { font-size: 1.2rem; font-weight: 700; }
+    .red-label { color: #ef4444; }
+    .yellow-label { color: #eab308; }
+
+    /* Board */
+    .board-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 380px;
+    }
+
+    /* Column hover preview */
+    .preview-row {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+      padding: 0 4px;
+      height: 40px;
+      margin-bottom: 4px;
+    }
+    .preview-cell {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .preview-disc {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+    .preview-disc.show-red {
+      opacity: 0.5;
+      background: radial-gradient(circle at 35% 35%, #f87171, #dc2626);
+      box-shadow: 0 0 10px rgba(239,68,68,0.4);
+    }
+    .preview-disc.show-yellow {
+      opacity: 0.5;
+      background: radial-gradient(circle at 35% 35%, #fde047, #ca8a04);
+      box-shadow: 0 0 10px rgba(234,179,8,0.4);
+    }
+
+    .board {
+      background: linear-gradient(180deg, #1e3a5f, #162b4d);
+      border-radius: 14px;
+      padding: 10px;
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      grid-template-rows: repeat(6, 1fr);
+      gap: 6px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 2px 0 rgba(255,255,255,0.08);
+      border: 2px solid rgba(99,102,241,0.3);
+    }
+
+    .slot {
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: radial-gradient(circle at 40% 40%, #0f172a, #070b14);
+      box-shadow: inset 0 3px 8px rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: box-shadow 0.2s ease;
+    }
+    .slot:hover { box-shadow: inset 0 3px 8px rgba(0,0,0,0.6), 0 0 8px rgba(99,102,241,0.3); }
+
+    .disc {
+      width: 85%;
+      height: 85%;
+      border-radius: 50%;
+      position: absolute;
+    }
+    .disc.red {
+      background: radial-gradient(circle at 35% 35%, #f87171, #dc2626, #991b1b);
+      box-shadow: 0 0 14px rgba(239,68,68,0.5), inset 0 -3px 6px rgba(0,0,0,0.3);
+    }
+    .disc.yellow {
+      background: radial-gradient(circle at 35% 35%, #fde047, #eab308, #a16207);
+      box-shadow: 0 0 14px rgba(234,179,8,0.5), inset 0 -3px 6px rgba(0,0,0,0.3);
+    }
+
+    /* Drop animation */
+    @keyframes dropIn {
+      0% { transform: translateY(-350px); opacity: 0.8; }
+      60% { transform: translateY(8px); }
+      80% { transform: translateY(-4px); }
+      100% { transform: translateY(0); opacity: 1; }
+    }
+    .disc.dropping { animation: dropIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+
+    /* Win glow */
+    @keyframes winPulse {
+      0%, 100% { transform: scale(1); filter: brightness(1); }
+      50% { transform: scale(1.1); filter: brightness(1.5); }
+    }
+    .disc.win-glow { animation: winPulse 0.6s ease-in-out infinite; }
+
+    /* Status & reset */
+    .status {
+      margin-top: 12px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      height: 28px;
+      color: #f59e0b;
+      text-align: center;
+    }
+    .reset-btn {
+      background: linear-gradient(135deg, #6366f1, #ec4899);
+      color: #fff;
+      border: none;
+      padding: 9px 22px;
+      border-radius: 10px;
+      font-weight: 700;
+      margin-top: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: opacity 0.2s;
+    }
+    .reset-btn:hover { opacity: 0.85; }
+
+    @media (max-width: 420px) {
+      .board { padding: 6px; gap: 4px; }
+      h1 { font-size: 1.15rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🔴🟡 Connect 4 — Four in a Row</h1>
+
+  <div class="controls">
+    <button class="ctrl-btn active" id="btnAI" onclick="setMode('AI')">🤖 vs AI</button>
+    <button class="ctrl-btn" id="btn2P" onclick="setMode('2P')">👥 2 Players</button>
+    <div class="diff-group" id="diffGroup">
+      <button class="ctrl-btn active" data-diff="easy" onclick="setDiff('easy')">Easy</button>
+      <button class="ctrl-btn" data-diff="medium" onclick="setDiff('medium')">Medium</button>
+      <button class="ctrl-btn" data-diff="hard" onclick="setDiff('hard')">Hard</button>
+    </div>
+  </div>
+
+  <div class="score-board">
+    <div class="score-item"><label class="red-label" id="labelRed">Player (🔴)</label><span id="scoreRed">0</span></div>
+    <div class="score-item"><label style="color:#94a3b8">Draws</label><span id="scoreDraw">0</span></div>
+    <div class="score-item"><label class="yellow-label" id="labelYellow">AI (🟡)</label><span id="scoreYellow">0</span></div>
+  </div>
+
+  <div class="board-wrapper">
+    <div class="preview-row" id="previewRow"></div>
+    <div class="board" id="board"></div>
+  </div>
+
+  <div class="status" id="statusText">🔴 Player's Turn</div>
+  <button class="reset-btn" onclick="resetBoard()">New Match</button>
+
+<script>
+const ROWS = 6, COLS = 7;
+let board = [];
+let currentPlayer = 'red'; // 'red' or 'yellow'
+let gameActive = true;
+let mode = 'AI';
+let difficulty = 'easy';
+let scores = { red: 0, yellow: 0, draw: 0 };
+let aiThinking = false;
+
+const DEPTHS = { easy: 2, medium: 4, hard: 6 };
+
+function init() {
+  board = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+  renderBoard();
+  renderPreview();
+}
+
+function renderBoard() {
+  const el = document.getElementById('board');
+  el.innerHTML = '';
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const slot = document.createElement('div');
+      slot.className = 'slot';
+      slot.dataset.col = c;
+      slot.onclick = () => handleClick(c);
+      if (board[r][c]) {
+        const disc = document.createElement('div');
+        disc.className = `disc ${board[r][c]}`;
+        disc.id = `disc-${r}-${c}`;
+        slot.appendChild(disc);
+      }
+      el.appendChild(slot);
+    }
+  }
+}
+
+function renderPreview() {
+  const row = document.getElementById('previewRow');
+  row.innerHTML = '';
+  for (let c = 0; c < COLS; c++) {
+    const cell = document.createElement('div');
+    cell.className = 'preview-cell';
+    const disc = document.createElement('div');
+    disc.className = 'preview-disc';
+    disc.id = `preview-${c}`;
+    cell.appendChild(disc);
+    cell.addEventListener('mouseenter', () => showPreview(c));
+    cell.addEventListener('mouseleave', () => hidePreview(c));
+    cell.addEventListener('click', () => handleClick(c));
+    row.appendChild(cell);
+  }
+}
+
+function showPreview(col) {
+  if (!gameActive || aiThinking) return;
+  // Check if column is not full
+  if (board[0][col] !== null) return;
+  const disc = document.getElementById(`preview-${col}`);
+  disc.className = `preview-disc show-${currentPlayer}`;
+}
+
+function hidePreview(col) {
+  const disc = document.getElementById(`preview-${col}`);
+  disc.className = 'preview-disc';
+}
+
+function handleClick(col) {
+  if (!gameActive || aiThinking) return;
+  if (mode === 'AI' && currentPlayer === 'yellow') return;
+  dropPiece(col);
+}
+
+function dropPiece(col) {
+  // Find lowest empty row
+  let row = -1;
+  for (let r = ROWS - 1; r >= 0; r--) {
+    if (board[r][col] === null) { row = r; break; }
+  }
+  if (row === -1) return false;
+
+  board[row][col] = currentPlayer;
+  renderBoard();
+
+  // Animate the drop
+  const disc = document.getElementById(`disc-${row}-${col}`);
+  if (disc) disc.classList.add('dropping');
+
+  // Check win
+  const winCells = checkWin(board, row, col, currentPlayer);
+  if (winCells) {
+    setTimeout(() => {
+      winCells.forEach(([wr, wc]) => {
+        const d = document.getElementById(`disc-${wr}-${wc}`);
+        if (d) d.classList.add('win-glow');
+      });
+    }, 400);
+    const winner = currentPlayer === 'red' ? '🔴 Red' : '🟡 Yellow';
+    document.getElementById('statusText').textContent = `🎉 ${winner} Wins!`;
+    scores[currentPlayer]++;
+    updateScores();
+    gameActive = false;
+    return true;
+  }
+
+  // Check draw
+  if (board[0].every(cell => cell !== null)) {
+    document.getElementById('statusText').textContent = `🤝 It's a Draw!`;
+    scores.draw++;
+    updateScores();
+    gameActive = false;
+    return true;
+  }
+
+  // Switch player
+  currentPlayer = currentPlayer === 'red' ? 'yellow' : 'red';
+  updateStatus();
+
+  if (mode === 'AI' && currentPlayer === 'yellow' && gameActive) {
+    aiThinking = true;
+    document.getElementById('statusText').textContent = '🤖 AI is thinking...';
+    setTimeout(() => {
+      const aiCol = aiGetMove();
+      dropPiece(aiCol);
+      aiThinking = false;
+    }, 300);
+  }
+
+  return true;
+}
+
+function checkWin(b, row, col, player) {
+  const directions = [[0,1],[1,0],[1,1],[1,-1]];
+  for (const [dr, dc] of directions) {
+    let cells = [[row, col]];
+    // Forward
+    for (let i = 1; i < 4; i++) {
+      const nr = row + dr * i, nc = col + dc * i;
+      if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS && b[nr][nc] === player) {
+        cells.push([nr, nc]);
+      } else break;
+    }
+    // Backward
+    for (let i = 1; i < 4; i++) {
+      const nr = row - dr * i, nc = col - dc * i;
+      if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS && b[nr][nc] === player) {
+        cells.push([nr, nc]);
+      } else break;
+    }
+    if (cells.length >= 4) return cells;
+  }
+  return null;
+}
+
+function hasWin(b, player) {
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (b[r][c] === player && checkWin(b, r, c, player)) return true;
+    }
+  }
+  return false;
+}
+
+// ── AI: Minimax with Alpha-Beta Pruning ──
+function aiGetMove() {
+  const depth = DEPTHS[difficulty];
+  let bestScore = -Infinity;
+  let bestCol = 3; // center default
+
+  // Evaluate columns in center-first order for better pruning
+  const order = [3, 2, 4, 1, 5, 0, 6];
+
+  for (const c of order) {
+    if (board[0][c] !== null) continue;
+    const r = getDropRow(board, c);
+    board[r][c] = 'yellow';
+    const score = minimax(board, depth - 1, -Infinity, Infinity, false);
+    board[r][c] = null;
+    if (score > bestScore) {
+      bestScore = score;
+      bestCol = c;
+    }
+  }
+  return bestCol;
+}
+
+function getDropRow(b, col) {
+  for (let r = ROWS - 1; r >= 0; r--) {
+    if (b[r][col] === null) return r;
+  }
+  return -1;
+}
+
+function minimax(b, depth, alpha, beta, isMaximizing) {
+  if (hasWin(b, 'yellow')) return 1000 + depth;
+  if (hasWin(b, 'red')) return -1000 - depth;
+  if (depth === 0 || b[0].every(cell => cell !== null)) return evaluateBoard(b);
+
+  const order = [3, 2, 4, 1, 5, 0, 6];
+
+  if (isMaximizing) {
+    let best = -Infinity;
+    for (const c of order) {
+      const r = getDropRow(b, c);
+      if (r === -1) continue;
+      b[r][c] = 'yellow';
+      best = Math.max(best, minimax(b, depth - 1, alpha, beta, false));
+      b[r][c] = null;
+      alpha = Math.max(alpha, best);
+      if (beta <= alpha) break;
+    }
+    return best;
+  } else {
+    let best = Infinity;
+    for (const c of order) {
+      const r = getDropRow(b, c);
+      if (r === -1) continue;
+      b[r][c] = 'red';
+      best = Math.min(best, minimax(b, depth - 1, alpha, beta, true));
+      b[r][c] = null;
+      beta = Math.min(beta, best);
+      if (beta <= alpha) break;
+    }
+    return best;
+  }
+}
+
+function evaluateBoard(b) {
+  let score = 0;
+  // Center column preference
+  for (let r = 0; r < ROWS; r++) {
+    if (b[r][3] === 'yellow') score += 3;
+    if (b[r][3] === 'red') score -= 3;
+  }
+  // Evaluate all windows of 4
+  // Horizontal
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c <= COLS - 4; c++) {
+      score += evalWindow([b[r][c], b[r][c+1], b[r][c+2], b[r][c+3]]);
+    }
+  }
+  // Vertical
+  for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r <= ROWS - 4; r++) {
+      score += evalWindow([b[r][c], b[r+1][c], b[r+2][c], b[r+3][c]]);
+    }
+  }
+  // Diag down-right
+  for (let r = 0; r <= ROWS - 4; r++) {
+    for (let c = 0; c <= COLS - 4; c++) {
+      score += evalWindow([b[r][c], b[r+1][c+1], b[r+2][c+2], b[r+3][c+3]]);
+    }
+  }
+  // Diag down-left
+  for (let r = 0; r <= ROWS - 4; r++) {
+    for (let c = 3; c < COLS; c++) {
+      score += evalWindow([b[r][c], b[r+1][c-1], b[r+2][c-2], b[r+3][c-3]]);
+    }
+  }
+  return score;
+}
+
+function evalWindow(w) {
+  const ai = w.filter(x => x === 'yellow').length;
+  const human = w.filter(x => x === 'red').length;
+  const empty = w.filter(x => x === null).length;
+  if (ai === 4) return 100;
+  if (ai === 3 && empty === 1) return 5;
+  if (ai === 2 && empty === 2) return 2;
+  if (human === 4) return -100;
+  if (human === 3 && empty === 1) return -4;
+  return 0;
+}
+
+function updateStatus() {
+  const turnLabel = currentPlayer === 'red' ? '🔴 Red' : '🟡 Yellow';
+  const who = (mode === '2P') ? `${turnLabel}'s Turn` :
+              (currentPlayer === 'red' ? `${turnLabel} — Your Turn` : '🤖 AI is thinking...');
+  document.getElementById('statusText').textContent = who;
+}
+
+function updateScores() {
+  document.getElementById('scoreRed').textContent = scores.red;
+  document.getElementById('scoreYellow').textContent = scores.yellow;
+  document.getElementById('scoreDraw').textContent = scores.draw;
+}
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('btnAI').classList.toggle('active', m === 'AI');
+  document.getElementById('btn2P').classList.toggle('active', m === '2P');
+  document.getElementById('diffGroup').classList.toggle('hidden', m === '2P');
+  document.getElementById('labelYellow').textContent = m === 'AI' ? 'AI (🟡)' : 'Player 2 (🟡)';
+  resetBoard();
+}
+
+function setDiff(d) {
+  difficulty = d;
+  document.querySelectorAll('.diff-group .ctrl-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.diff === d);
+  });
+  resetBoard();
+}
+
+function resetBoard() {
+  currentPlayer = 'red';
+  gameActive = true;
+  aiThinking = false;
+  init();
+  updateStatus();
+}
+
+// Init
+init();
+</script>
+</body>
+</html>

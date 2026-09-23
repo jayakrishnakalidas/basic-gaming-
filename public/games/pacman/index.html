@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Cyber Pac-Man</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; touch-action: manipulation; user-select: none; }
+    body { background: #090d16; color: #fff; font-family: system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; overflow: hidden; }
+    .header { display: flex; justify-content: space-between; width: 360px; margin-bottom: 10px; font-weight: 700; font-size: 1.1rem; }
+    canvas { background: #0f172a; border: 2px solid #f59e0b; border-radius: 12px; box-shadow: 0 0 20px rgba(245, 158, 11, 0.3); max-width: 95vw; }
+    .controls { display: grid; grid-template-columns: repeat(3, 55px); grid-gap: 8px; margin-top: 12px; }
+    .btn { background: rgba(245, 158, 11, 0.2); border: 1px solid #f59e0b; color: #fff; font-size: 1.4rem; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+    .btn:active { background: #f59e0b; }
+    .btn-up { grid-column: 2; }
+    .btn-left { grid-column: 1; grid-row: 2; }
+    .btn-down { grid-column: 2; grid-row: 2; }
+    .btn-right { grid-column: 3; grid-row: 2; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div>Score: <span id="score">0</span></div>
+    <div>Lives: <span id="lives">💛💛💛</span></div>
+  </div>
+
+  <canvas id="pacCanvas" width="360" height="380"></canvas>
+
+  <div class="controls">
+    <div class="btn btn-up" id="btnUp">▲</div>
+    <div class="btn btn-left" id="btnLeft">◄</div>
+    <div class="btn btn-down" id="btnDown">▼</div>
+    <div class="btn btn-right" id="btnRight">►</div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('pacCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const tileSize = 20;
+    const map = [
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      [1,2,2,2,2,2,2,2,1,1,2,2,2,2,2,2,2,1],
+      [1,3,1,1,2,1,1,2,1,1,2,1,1,2,1,1,3,1],
+      [1,2,1,1,2,1,1,2,1,1,2,1,1,2,1,1,2,1],
+      [1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1],
+      [1,2,1,1,2,1,2,1,1,1,1,2,1,2,1,1,2,1],
+      [1,2,2,2,2,1,2,2,1,1,2,2,1,2,2,2,2,1],
+      [1,1,1,1,2,1,1,0,0,0,0,1,1,2,1,1,1,1],
+      [0,0,0,1,2,1,0,0,0,0,0,0,1,2,1,0,0,0],
+      [1,1,1,1,2,1,0,1,0,0,1,0,1,2,1,1,1,1],
+      [1,2,2,2,2,0,0,1,0,0,1,0,0,2,2,2,2,1],
+      [1,1,1,1,2,1,0,1,1,1,1,0,1,2,1,1,1,1],
+      [0,0,0,1,2,1,0,0,0,0,0,0,1,2,1,0,0,0],
+      [1,1,1,1,2,1,0,1,1,1,1,0,1,2,1,1,1,1],
+      [1,2,2,2,2,2,2,2,1,1,2,2,2,2,2,2,2,1],
+      [1,3,1,1,2,1,1,2,1,1,2,1,1,2,1,1,3,1],
+      [1,2,2,1,2,2,2,2,0,0,2,2,2,2,1,2,2,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+    ];
+
+    let gridMap = JSON.parse(JSON.stringify(map));
+
+    let pacman = { x: 9, y: 16, dx: 0, dy: 0, nextDx: 0, nextDy: 0, mouth: 0.2, mouthDir: 1 };
+    let ghosts = [
+      { x: 8, y: 8, color: '#ec4899', dx: 1, dy: 0 },
+      { x: 9, y: 8, color: '#14b8a6', dx: -1, dy: 0 },
+      { x: 8, y: 10, color: '#a855f7', dx: 0, dy: -1 }
+    ];
+
+    let score = 0;
+    let lives = 3;
+    let powerTime = 0;
+    let isGameOver = false;
+
+    function draw() {
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Render Map
+      for (let r = 0; r < gridMap.length; r++) {
+        for (let c = 0; c < gridMap[r].length; c++) {
+          let cell = gridMap[r][c];
+          if (cell === 1) {
+            ctx.fillStyle = '#3b82f6';
+            ctx.fillRect(c * tileSize + 2, r * tileSize + 2, tileSize - 4, tileSize - 4);
+          } else if (cell === 2) {
+            ctx.fillStyle = '#fef08a';
+            ctx.beginPath();
+            ctx.arc(c * tileSize + 10, r * tileSize + 10, 3, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (cell === 3) {
+            ctx.fillStyle = '#f59e0b';
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = '#f59e0b';
+            ctx.beginPath();
+            ctx.arc(c * tileSize + 10, r * tileSize + 10, 6, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+          }
+        }
+      }
+
+      // Move & Draw Pac-Man
+      if (!isGameOver) {
+        if (powerTime > 0) powerTime--;
+
+        // Try change direction
+        if (canMove(pacman.x + pacman.nextDx, pacman.y + pacman.nextDy)) {
+          pacman.dx = pacman.nextDx;
+          pacman.dy = pacman.nextDy;
+        }
+
+        if (canMove(pacman.x + pacman.dx, pacman.y + pacman.dy)) {
+          pacman.x += pacman.dx;
+          pacman.y += pacman.dy;
+
+          // Eat pellets
+          let curCell = gridMap[pacman.y][pacman.x];
+          if (curCell === 2) {
+            gridMap[pacman.y][pacman.x] = 0;
+            score += 10;
+            document.getElementById('score').textContent = score;
+          } else if (curCell === 3) {
+            gridMap[pacman.y][pacman.x] = 0;
+            score += 50;
+            powerTime = 120;
+            document.getElementById('score').textContent = score;
+          }
+        }
+
+        // Draw Pac-Man
+        pacman.mouth += 0.05 * pacman.mouthDir;
+        if (pacman.mouth > 0.4 || pacman.mouth < 0.05) pacman.mouthDir *= -1;
+
+        let angle = 0;
+        if (pacman.dx === 1) angle = 0;
+        if (pacman.dx === -1) angle = Math.PI;
+        if (pacman.dy === 1) angle = Math.PI / 2;
+        if (pacman.dy === -1) angle = -Math.PI / 2;
+
+        ctx.fillStyle = '#f59e0b';
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#f59e0b';
+        ctx.beginPath();
+        ctx.arc(
+          pacman.x * tileSize + 10, pacman.y * tileSize + 10, 8,
+          angle + pacman.mouth, angle + Math.PI * 2 - pacman.mouth
+        );
+        ctx.lineTo(pacman.x * tileSize + 10, pacman.y * tileSize + 10);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // Move & Draw Ghosts
+        ghosts.forEach(g => {
+          const dirs = [{x: 1, y: 0}, {x: -1, y: 0}, {x: 0, y: 1}, {x: 0, y: -1}];
+          const valid = dirs.filter(d => canMove(g.x + d.x, g.y + d.y));
+          if (valid.length > 0 && Math.random() < 0.3) {
+            let choice = valid[Math.floor(Math.random() * valid.length)];
+            g.dx = choice.x; g.dy = choice.y;
+          }
+          if (canMove(g.x + g.dx, g.y + g.dy)) {
+            g.x += g.dx; g.y += g.dy;
+          }
+
+          // Draw Ghost
+          ctx.fillStyle = powerTime > 0 ? '#3b82f6' : g.color;
+          ctx.shadowBlur = 8;
+          ctx.shadowColor = ctx.fillStyle;
+          ctx.beginPath();
+          ctx.arc(g.x * tileSize + 10, g.y * tileSize + 8, 8, Math.PI, 0, false);
+          ctx.lineTo(g.x * tileSize + 18, g.y * tileSize + 16);
+          ctx.lineTo(g.x * tileSize + 2, g.y * tileSize + 16);
+          ctx.fill();
+          ctx.shadowBlur = 0;
+
+          // Ghost collision
+          if (g.x === pacman.x && g.y === pacman.y) {
+            if (powerTime > 0) {
+              g.x = 9; g.y = 8;
+              score += 200;
+              document.getElementById('score').textContent = score;
+            } else {
+              lives--;
+              updateLivesDisplay();
+              if (lives <= 0) {
+                isGameOver = true;
+              } else {
+                pacman.x = 9; pacman.y = 16;
+              }
+            }
+          }
+        });
+      }
+
+      if (isGameOver) {
+        ctx.fillStyle = '#ec4899';
+        ctx.font = 'bold 26px system-ui';
+        ctx.textAlign = 'center';
+        ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2);
+        ctx.font = '14px system-ui';
+        ctx.fillStyle = '#fff';
+        ctx.fillText('Tap D-Pad or Key to Restart', canvas.width / 2, canvas.height / 2 + 35);
+      }
+    }
+
+    function canMove(x, y) {
+      if (y < 0 || y >= gridMap.length || x < 0 || x >= gridMap[0].length) return false;
+      return gridMap[y][x] !== 1;
+    }
+
+    function updateLivesDisplay() {
+      let hearts = '';
+      for (let i = 0; i < lives; i++) hearts += '💛';
+      document.getElementById('lives').textContent = hearts || '💀';
+    }
+
+    function setDir(dx, dy) {
+      if (isGameOver) {
+        isGameOver = false;
+        lives = 3;
+        score = 0;
+        gridMap = JSON.parse(JSON.stringify(map));
+        document.getElementById('score').textContent = 0;
+        updateLivesDisplay();
+        pacman.x = 9; pacman.y = 16;
+      }
+      pacman.nextDx = dx;
+      pacman.nextDy = dy;
+    }
+
+    // Controls
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowUp' || e.key === 'w') setDir(0, -1);
+      if (e.key === 'ArrowDown' || e.key === 's') setDir(0, 1);
+      if (e.key === 'ArrowLeft' || e.key === 'a') setDir(-1, 0);
+      if (e.key === 'ArrowRight' || e.key === 'd') setDir(1, 0);
+    });
+
+    document.getElementById('btnUp').onclick = () => setDir(0, -1);
+    document.getElementById('btnDown').onclick = () => setDir(0, 1);
+    document.getElementById('btnLeft').onclick = () => setDir(-1, 0);
+    document.getElementById('btnRight').onclick = () => setDir(1, 0);
+
+    setInterval(draw, 140);
+  </script>
+</body>
+</html>

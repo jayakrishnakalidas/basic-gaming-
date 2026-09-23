@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Flappy Cyber</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; touch-action: manipulation; user-select: none; }
+    body { background: #090d16; color: #fff; font-family: system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; overflow: hidden; }
+    canvas { background: #0f172a; border: 2px solid #14b8a6; border-radius: 12px; box-shadow: 0 0 20px rgba(20, 184, 166, 0.3); max-width: 95vw; }
+    .tip { margin-top: 12px; color: #94a3b8; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+
+  <canvas id="flappyCanvas" width="360" height="520"></canvas>
+  <div class="tip">Tap Screen or Press Space to Flap</div>
+
+  <script>
+    const canvas = document.getElementById('flappyCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let bird = { x: 60, y: 200, velocity: 0, gravity: 0.4, jump: -7, radius: 14 };
+    let pipes = [];
+    let score = 0;
+    let highScore = localStorage.getItem('flappy_high') || 0;
+    let frame = 0;
+    let gameState = 'START'; // START, PLAYING, GAMEOVER
+
+    function reset() {
+      bird.y = 200;
+      bird.velocity = 0;
+      pipes = [];
+      score = 0;
+      frame = 0;
+      gameState = 'PLAYING';
+    }
+
+    function flap() {
+      if (gameState === 'START' || gameState === 'GAMEOVER') {
+        reset();
+      } else {
+        bird.velocity = bird.jump;
+      }
+    }
+
+    function loop() {
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      if (gameState === 'PLAYING') {
+        frame++;
+        bird.velocity += bird.gravity;
+        bird.y += bird.velocity;
+
+        // Spawn pipes
+        if (frame % 90 === 0) {
+          const gap = 130;
+          const topHeight = Math.floor(Math.random() * (canvas.height - gap - 120)) + 40;
+          pipes.push({ x: canvas.width, top: topHeight, bottom: topHeight + gap, passed: false });
+        }
+
+        // Update pipes
+        for (let i = pipes.length - 1; i >= 0; i--) {
+          pipes[i].x -= 2.5;
+
+          // Score point
+          if (!pipes[i].passed && pipes[i].x + 50 < bird.x) {
+            pipes[i].passed = true;
+            score++;
+            if (score > highScore) {
+              highScore = score;
+              localStorage.setItem('flappy_high', highScore);
+            }
+          }
+
+          // Collision check
+          if (
+            bird.x + bird.radius > pipes[i].x && bird.x - bird.radius < pipes[i].x + 50 &&
+            (bird.y - bird.radius < pipes[i].top || bird.y + bird.radius > pipes[i].bottom)
+          ) {
+            gameState = 'GAMEOVER';
+          }
+
+          // Remove offscreen
+          if (pipes[i].x < -60) pipes.splice(i, 1);
+        }
+
+        // Floor / Ceiling hit
+        if (bird.y + bird.radius >= canvas.height || bird.y - bird.radius <= 0) {
+          gameState = 'GAMEOVER';
+        }
+      }
+
+      // Draw Pipes
+      pipes.forEach(p => {
+        ctx.fillStyle = '#14b8a6';
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = '#14b8a6';
+        ctx.fillRect(p.x, 0, 50, p.top);
+        ctx.fillRect(p.x, p.bottom, 50, canvas.height - p.bottom);
+      });
+
+      // Draw Bird
+      ctx.fillStyle = '#f59e0b';
+      ctx.shadowColor = '#f59e0b';
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.arc(bird.x, bird.y, bird.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // HUD Text
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 24px system-ui';
+      ctx.textAlign = 'center';
+
+      if (gameState === 'PLAYING') {
+        ctx.fillText(score, canvas.width / 2, 50);
+      } else if (gameState === 'START') {
+        ctx.fillText('TAP TO PLAY', canvas.width / 2, canvas.height / 2 - 20);
+        ctx.font = '16px system-ui';
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText(`High Score: ${highScore}`, canvas.width / 2, canvas.height / 2 + 20);
+      } else if (gameState === 'GAMEOVER') {
+        ctx.fillStyle = '#ec4899';
+        ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 30);
+        ctx.fillStyle = '#fff';
+        ctx.font = '18px system-ui';
+        ctx.fillText(`Score: ${score} | High: ${highScore}`, canvas.width / 2, canvas.height / 2 + 10);
+        ctx.font = '14px system-ui';
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText('Tap to Restart', canvas.width / 2, canvas.height / 2 + 50);
+      }
+
+      requestAnimationFrame(loop);
+    }
+
+    // Input handlers
+    window.addEventListener('touchstart', (e) => { e.preventDefault(); flap(); });
+    window.addEventListener('mousedown', flap);
+    document.addEventListener('keydown', (e) => { if (e.code === 'Space' || e.key === 'ArrowUp') flap(); });
+
+    loop();
+  </script>
+</body>
+</html>

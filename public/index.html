@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Local Web Arcade | Play Instant Web Games</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="header-container">
+      <a href="./" class="logo">
+        👾 LOCAL ARCADE <span class="badge">No-Install</span>
+      </a>
+      <div class="ip-banner">
+        📱 Web Access: <strong id="ipAddressText">Loading...</strong>
+      </div>
+    </div>
+  </header>
+
+  <!-- Toolbar & Filters -->
+  <div class="toolbar">
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="Search games...">
+    </div>
+    <div class="categories">
+      <button class="cat-btn active" data-cat="all">All Games</button>
+      <button class="cat-btn" data-cat="arcade">Arcade</button>
+      <button class="cat-btn" data-cat="action">Action</button>
+      <button class="cat-btn" data-cat="puzzle">Puzzle</button>
+      <button class="cat-btn" data-cat="classic">Classic</button>
+      <button class="cat-btn" data-cat="strategy">Strategy</button>
+    </div>
+  </div>
+
+  <!-- Games Grid -->
+  <main>
+    <div class="games-grid" id="gamesGrid">
+      <!-- Dynamically populated by app.js -->
+    </div>
+  </main>
+
+  <!-- Game Modal Player -->
+  <div class="modal-overlay" id="gameModal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalGameTitle">🎮 Game Title</div>
+      <div class="modal-actions">
+        <button class="action-btn" id="fullscreenBtn" title="Fullscreen">⛶</button>
+        <button class="action-btn close" id="closeModal" title="Close">✕</button>
+      </div>
+    </div>
+    <div class="iframe-container" id="iframeContainer">
+      <iframe id="gameIframe" src="" allow="fullscreen; autoplay"></iframe>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <p>Local Web Arcade • Self-Hosted Instant HTML5 Gaming Server</p>
+  </footer>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,14 @@
+{
+  "name": "local-web-arcade",
+  "version": "1.0.0",
+  "description": "Local Web Arcade server for browser games on Desktop and Mobile",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "ws": "^8.21.3"
+  }
+}

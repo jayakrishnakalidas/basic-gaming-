@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Memory Match</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; touch-action: manipulation; }
+    body { background: #090d16; color: #fff; font-family: system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 15px; }
+    .header { display: flex; justify-content: space-between; width: 100%; max-width: 340px; margin-bottom: 15px; font-weight: 700; }
+    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; width: 100%; max-width: 340px; }
+    .card { background: #161f31; border: 2px solid #6366f1; border-radius: 12px; height: 75px; display: flex; align-items: center; justify-content: center; font-size: 2.2rem; cursor: pointer; transition: transform 0.3s ease, background 0.3s ease; transform-style: preserve-3d; }
+    .card.flipped { background: #334155; border-color: #ec4899; transform: rotateY(180deg); }
+    .card.matched { background: rgba(20, 184, 166, 0.2); border-color: #14b8a6; cursor: default; }
+    .restart-btn { background: #6366f1; color: #fff; border: none; padding: 10px 20px; border-radius: 10px; font-weight: 700; margin-top: 20px; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div>Moves: <span id="moves">0</span></div>
+    <div>Matches: <span id="matches">0</span> / 6</div>
+  </div>
+
+  <div class="grid" id="cardGrid"></div>
+  <button class="restart-btn" onclick="initGame()">Restart Game</button>
+
+  <script>
+    const icons = ['🐱', '🐶', '🦊', '🦁', '🐸', '🦄'];
+    let cards = [];
+    let flippedCards = [];
+    let moves = 0;
+    let matches = 0;
+    let lockBoard = false;
+
+    function initGame() {
+      cards = [...icons, ...icons].sort(() => Math.random() - 0.5);
+      flippedCards = [];
+      moves = 0;
+      matches = 0;
+      lockBoard = false;
+      document.getElementById('moves').textContent = 0;
+      document.getElementById('matches').textContent = 0;
+
+      const grid = document.getElementById('cardGrid');
+      grid.innerHTML = '';
+      cards.forEach((icon, index) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.dataset.icon = icon;
+        card.dataset.index = index;
+        card.addEventListener('click', flipCard);
+        grid.appendChild(card);
+      });
+    }
+
+    function flipCard() {
+      if (lockBoard) return;
+      if (this.classList.contains('flipped') || this.classList.contains('matched')) return;
+
+      this.classList.add('flipped');
+      this.textContent = this.dataset.icon;
+      flippedCards.push(this);
+
+      if (flippedCards.length === 2) {
+        moves++;
+        document.getElementById('moves').textContent = moves;
+        checkMatch();
+      }
+    }
+
+    function checkMatch() {
+      const [card1, card2] = flippedCards;
+      if (card1.dataset.icon === card2.dataset.icon) {
+        card1.classList.add('matched');
+        card2.classList.add('matched');
+        matches++;
+        document.getElementById('matches').textContent = matches;
+        flippedCards = [];
+        if (matches === icons.length) {
+          setTimeout(() => alert(`🎉 You Won in ${moves} moves!`), 300);
+        }
+      } else {
+        lockBoard = true;
+        setTimeout(() => {
+          card1.classList.remove('flipped');
+          card2.classList.remove('flipped');
+          card1.textContent = '';
+          card2.textContent = '';
+          flippedCards = [];
+          lockBoard = false;
+        }, 900);
+      }
+    }
+
+    initGame();
+  </script>
+</body>
+</html>
